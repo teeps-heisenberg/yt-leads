@@ -1,3 +1,5 @@
+export type LeadType = "hot" | "warm" | "cold"
+
 export interface Comment {
   id: string
   username: string
@@ -6,6 +8,9 @@ export interface Comment {
   date: string
   likes: number
   replied: boolean
+  leadType?: LeadType // AI classification: hot, warm, or cold
+  leadReason?: string // Reason for the classification
+  reply?: string // AI-generated generic reply for the comment
 }
 
 export const dummyComments: Comment[] = [
