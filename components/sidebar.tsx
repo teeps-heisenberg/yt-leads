@@ -1,23 +1,36 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { LayoutDashboard, Users, MessageSquare, Settings, Play, Menu, LogOut } from "lucide-react"
 import { useState } from "react"
+import { createClient } from "@/lib/supabase/client"
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Leads", href: "/dashboard/leads", icon: Users },
-  { name: "Replies", href: "/dashboard/replies", icon: MessageSquare },
-  { name: "Settings", href: "/dashboard/settings", icon: Settings },
+  // { name: "Leads", href: "/dashboard/leads", icon: Users },
+  // { name: "Replies", href: "/dashboard/replies", icon: MessageSquare },
+  // { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ]
 
 function SidebarContent() {
   const pathname = usePathname()
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    const supabase = createClient()
+    const { error } = await supabase.auth.signOut()
+    
+    if (!error) {
+      // Redirect to landing page
+      router.push("/")
+      router.refresh()
+    }
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -25,7 +38,7 @@ function SidebarContent() {
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary">
           <Play className="h-5 w-5 fill-primary-foreground text-primary-foreground" />
         </div>
-        <span className="text-xl font-bold tracking-tight">Monsage</span>
+        <span className="text-xl font-bold tracking-tight">YTLeadBoost</span>
       </div>
 
       <ScrollArea className="flex-1 px-3 py-4">
@@ -52,7 +65,11 @@ function SidebarContent() {
       </ScrollArea>
 
       <div className="border-t border-border p-4">
-        <Button variant="ghost" className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground">
+        <Button 
+          variant="ghost" 
+          className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground"
+          onClick={handleLogout}
+        >
           <LogOut className="h-5 w-5" />
           Logout
         </Button>

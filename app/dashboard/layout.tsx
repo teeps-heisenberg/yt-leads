@@ -1,12 +1,22 @@
 import type React from "react"
+import { redirect } from "next/navigation"
+import { createClient } from "@/lib/supabase/server"
 import { Sidebar } from "@/components/sidebar"
 import { TopBar } from "@/components/top-bar"
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  // Require authentication - redirect to login if not authenticated
+  if (!user) {
+    redirect("/login")
+  }
+
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />

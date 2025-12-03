@@ -2,30 +2,44 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, Play } from "lucide-react"
 import { toast } from "sonner"
+import { createClient } from "@/lib/supabase/client"
 
 interface AuthFormProps {
   mode: "login" | "signup"
 }
 
 export function AuthForm({ mode }: AuthFormProps) {
-  const router = useRouter()
+  const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(false)
   const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+
+  // Check for error messages from URL params (e.g., from auth callback)
+  useEffect(() => {
+    const error = searchParams.get('error')
+    const message = searchParams.get('message')
+    
+    if (error && message) {
+      toast.error(decodeURIComponent(message))
+      // Clean up URL by removing query params
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [searchParams])
 
   const isLogin = mode === "login"
   const title = isLogin ? "Welcome back" : "Create an account"
-  const description = isLogin ? "Enter your credentials to access your dashboard" : "Start your 14-day free trial today"
-  const buttonText = isLogin ? "Login" : "Sign Up"
+  const description = isLogin
+    ? "Enter your email to receive a magic link"
+    : "Enter your email to get started"
+  const buttonText = isLogin ? "Send Magic Link" : "Start"
   const altText = isLogin ? "Don't have an account?" : "Already have an account?"
   const altLink = isLogin ? "/signup" : "/login"
   const altLinkText = isLogin ? "Sign up" : "Login"
@@ -34,12 +48,38 @@ export function AuthForm({ mode }: AuthFormProps) {
     e.preventDefault()
     setIsLoading(true)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
 
-    toast.success(isLogin ? "Logged In Successfully!" : "Account Created Successfully!")
-    router.push("/dashboard")
-    setIsLoading(false)
+      if (error) {
+        // Check for rate limit errors
+        const errorMessage = error.message?.toLowerCase() || ''
+        const isRateLimit = errorMessage.includes('rate limit') || 
+                           errorMessage.includes('too many') ||
+                           error.status === 429 ||
+                           errorMessage.includes('email rate limit exceeded')
+        
+        if (isRateLimit) {
+          toast.error("Too many requests. Please wait 1 hour before requesting another magic link.")
+        } else {
+          toast.error(error.message || "Failed to send magic link. Please try again.")
+        }
+        setIsLoading(false)
+        return
+      }
+
+      toast.success("Check your email for the magic link!")
+    } catch (error) {
+      toast.error("An unexpected error occurred. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -48,7 +88,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary">
           <Play className="h-6 w-6 fill-primary-foreground text-primary-foreground" />
         </div>
-        <span className="text-2xl font-bold tracking-tight">Monsage</span>
+        <span className="text-2xl font-bold tracking-tight">YTLeadBoost</span>
       </Link>
 
       <Card className="w-full max-w-md rounded-2xl">
@@ -70,25 +110,6 @@ export function AuthForm({ mode }: AuthFormProps) {
                 className="h-11 rounded-xl"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="h-11 rounded-xl"
-              />
-            </div>
-            {isLogin && (
-              <div className="text-right">
-                <Link href="#" className="text-sm text-primary hover:underline">
-                  Forgot password?
-                </Link>
-              </div>
-            )}
             <Button type="submit" disabled={isLoading} className="h-11 w-full rounded-xl">
               {isLoading ? (
                 <>
@@ -116,6 +137,11 @@ export function AuthForm({ mode }: AuthFormProps) {
               {altLinkText}
             </Link>
           </p>
+          <div className="pt-2">
+            <Link href="/" className="text-center text-sm text-muted-foreground hover:text-foreground">
+              ← Go to home page
+            </Link>
+          </div>
         </CardFooter>
       </Card>
 
