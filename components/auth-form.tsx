@@ -21,6 +21,8 @@ export function AuthForm({ mode }: AuthFormProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -52,11 +54,23 @@ export function AuthForm({ mode }: AuthFormProps) {
     setIsLoading(true)
 
     try {
-      // Validate passwords match for signup
-      if (!isLogin && password !== confirmPassword) {
-        toast.error("Passwords do not match")
-        setIsLoading(false)
-        return
+      // Validate name fields for signup
+      if (!isLogin) {
+        if (!firstName.trim()) {
+          toast.error("First name is required")
+          setIsLoading(false)
+          return
+        }
+        if (!lastName.trim()) {
+          toast.error("Last name is required")
+          setIsLoading(false)
+          return
+        }
+        if (password !== confirmPassword) {
+          toast.error("Passwords do not match")
+          setIsLoading(false)
+          return
+        }
       }
 
       // Validate password length
@@ -88,6 +102,12 @@ export function AuthForm({ mode }: AuthFormProps) {
         const { error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              first_name: firstName.trim(),
+              last_name: lastName.trim(),
+            }
+          }
         })
 
         if (error) {
@@ -122,6 +142,36 @@ export function AuthForm({ mode }: AuthFormProps) {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {!isLogin && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName">First Name</Label>
+                    <Input
+                      id="firstName"
+                      type="text"
+                      placeholder="John"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      required
+                      className="h-11 rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">Last Name</Label>
+                    <Input
+                      id="lastName"
+                      type="text"
+                      placeholder="Doe"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      required
+                      className="h-11 rounded-xl"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
