@@ -28,20 +28,24 @@ export function UrlInput({ onFetch, isLoading }: UrlInputProps) {
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           type="url"
-          placeholder="Enter YouTube video URL (e.g., https://youtube.com/watch?v=...)"
+          placeholder="Paste your YouTube link here."
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           className="h-12 rounded-xl pl-10 text-base"
         />
       </div>
-      <Button type="submit" disabled={isLoading || !url.trim()} className="h-12 rounded-xl px-6">
+      <Button 
+        type="submit" 
+        disabled={isLoading || !url.trim()} 
+        className="h-12 w-full rounded-xl px-6 sm:w-auto"
+      >
         {isLoading ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Fetching...
+            Analyzing...
           </>
         ) : (
-          "Fetch Comments"
+          "Analyze"
         )}
       </Button>
     </form>

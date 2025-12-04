@@ -4,9 +4,8 @@ import { useState, useEffect } from "react"
 import { UrlInput } from "@/components/url-input"
 import { CommentsTable } from "@/components/comments-table"
 import { ReplyModal } from "@/components/reply-modal"
-import { StatsCards } from "@/components/stats-cards"
 import { Spinner } from "@/components/ui/spinner"
-import { type Comment } from "@/lib/dummy-data"
+import { type Comment, dummyComments } from "@/lib/dummy-data"
 import { toast } from "sonner"
 import { Youtube, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -44,6 +43,7 @@ function extractVideoId(url: string): string | null {
 export default function DashboardPage() {
   const [comments, setComments] = useState<Comment[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [loadingStep, setLoadingStep] = useState<"fetching" | "analyzing" | null>(null)
   const [selectedComment, setSelectedComment] = useState<Comment | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [user, setUser] = useState<any>(null)
@@ -63,14 +63,15 @@ export default function DashboardPage() {
       setUser(user)
       setIsAuthenticated(!!user)
 
-      // Load last analysis if exists (only for authenticated users)
-      if (user) {
-        const lastAnalysis = await loadLastAnalysis(true)
-        if (lastAnalysis && mounted) {
-          setComments(lastAnalysis.results_json)
-          setCurrentVideoUrl(lastAnalysis.video_url)
-        }
-      }
+      // Removed auto-loading of last analysis - dashboard should start fresh
+      // Results will only show when user explicitly analyzes a video
+      // if (user) {
+      //   const lastAnalysis = await loadLastAnalysis(true)
+      //   if (lastAnalysis && mounted) {
+      //     setComments(lastAnalysis.results_json)
+      //     setCurrentVideoUrl(lastAnalysis.video_url)
+      //   }
+      // }
     }
     
     checkAuth()
@@ -94,43 +95,50 @@ export default function DashboardPage() {
   }, [])
 
   const handleFetch = async (url: string) => {
-    setIsLoading(true)
-    setCurrentVideoUrl(url)
-    try {
-      // Step 1: Fetch comments from YouTube
-      const videoId = extractVideoId(url)
-      const fetchResponse = await fetch(`/api/youtube/fetch-comments?url=${encodeURIComponent(url)}`)
-      
-      if (!fetchResponse.ok) {
-        const error = await fetchResponse.json().catch(() => ({}))
-        throw new Error(error.error || "Failed to fetch comments")
-      }
+    // Validate URL first
+    const videoId = extractVideoId(url)
+    if (!videoId) {
+      toast.error("Invalid YouTube link. Please check the URL and try again.")
+      return
+    }
 
-      const fetchData = await fetchResponse.json()
-      const rawComments = fetchData.comments || []
+    setIsLoading(true)
+    setLoadingStep("fetching")
+    setCurrentVideoUrl(url)
+    
+    try {
+      // TEMPORARY: Using dummy data instead of API calls
+      // Step 1: Simulate fetching comments from YouTube
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      
+      // Use dummy data instead of API call
+      // const fetchResponse = await fetch(`/api/youtube/fetch-comments?url=${encodeURIComponent(url)}`)
+      // if (!fetchResponse.ok) { ... }
+      // const fetchData = await fetchResponse.json()
+      // const rawComments = fetchData.comments || []
+      const rawComments = dummyComments
 
       if (rawComments.length === 0) {
         toast.error("No comments found for this video.")
         setIsLoading(false)
+        setLoadingStep(null)
         return
       }
 
-      // Step 2: Classify comments using AI
-      const classifyResponse = await fetch("/api/ai/classify", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ comments: rawComments }),
-      })
-
-      if (!classifyResponse.ok) {
-        const error = await classifyResponse.json().catch(() => ({}))
-        throw new Error(error.error || "Failed to classify comments")
-      }
-
-      const classifyData = await classifyResponse.json()
-      const classifiedComments = classifyData.comments || rawComments
+      // Step 2: Simulate AI classification
+      setLoadingStep("analyzing")
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+      
+      // Use dummy data with classifications instead of API call
+      // const classifyResponse = await fetch("/api/ai/classify", {
+      //   method: "POST",
+      //   headers: { "Content-Type": "application/json" },
+      //   body: JSON.stringify({ comments: rawComments }),
+      // })
+      // if (!classifyResponse.ok) { ... }
+      // const classifyData = await classifyResponse.json()
+      // const classifiedComments = classifyData.comments || rawComments
+      const classifiedComments = dummyComments
 
       setComments(classifiedComments)
       toast.success(`Successfully analyzed ${classifiedComments.length} comments!`)
@@ -158,6 +166,7 @@ export default function DashboardPage() {
       toast.error(error instanceof Error ? error.message : "Failed to fetch comments. Please try again.")
     } finally {
       setIsLoading(false)
+      setLoadingStep(null)
     }
   }
 
@@ -181,31 +190,34 @@ export default function DashboardPage() {
   const repliedCount = comments.filter((c) => c.replied).length
   const hasResults = comments.length > 0
 
-  // MVP: Page 1 - Input Screen (shown when no results)
+  // Page 1 - Input Screen (shown when no results)
   if (!hasResults && !isLoading) {
     return (
-      <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center p-4">
-        <div className="mx-auto w-full max-w-2xl space-y-8">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Paste your YouTube video link to find hot leads
-            </h1>
-            <p className="mt-4 text-lg text-muted-foreground">
-              AI analyzes comments and classifies them as hot, warm, or cold leads
+      <div className="flex min-h-[calc(100vh-4rem)] flex-col p-4 sm:p-6">
+        <div className="mx-auto w-full max-w-4xl space-y-8">
+          {/* Header Section */}
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold tracking-tight">Extract YouTube Comments</h1>
+            <p className="text-lg text-muted-foreground">
+              Paste a video URL to find potential leads in the comments section.
             </p>
           </div>
 
+          {/* Input Section */}
           <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <UrlInput onFetch={handleFetch} isLoading={isLoading} />
           </div>
 
-          <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border bg-card/50">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-              <Youtube className="h-8 w-8 text-primary" />
+          {/* Empty State Section */}
+          <div className="flex min-h-[400px] flex-col items-center justify-center gap-4 rounded-2xl border border-border bg-card p-8">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+              <Youtube className="h-12 w-12 text-primary" />
             </div>
             <div className="text-center">
-              <p className="font-medium">Ready to analyze</p>
-              <p className="text-sm text-muted-foreground">Enter a YouTube video URL above to get started</p>
+              <p className="text-lg font-medium">No comments yet</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Enter a YouTube video URL above to get started
+              </p>
             </div>
           </div>
         </div>
@@ -213,19 +225,29 @@ export default function DashboardPage() {
     )
   }
 
-  // MVP: Loading State
+  // Loading State
   if (isLoading) {
+    const loadingMessage = loadingStep === "fetching" 
+      ? "Fetching Comments..." 
+      : loadingStep === "analyzing"
+      ? "Analyzing comments..."
+      : "Loading..."
+    
     return (
-      <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center p-4">
+      <div className="flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center p-4 sm:p-6">
         <div className="mx-auto w-full max-w-2xl space-y-4 text-center">
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6">
             <UrlInput onFetch={handleFetch} isLoading={isLoading} />
           </div>
-          <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-2xl border border-border bg-card">
+          <div className="flex min-h-[200px] flex-col items-center justify-center gap-4 rounded-2xl border border-border bg-card p-6">
             <Spinner className="h-12 w-12 text-primary" />
             <div>
-              <p className="font-medium text-muted-foreground">Analyzing comments...</p>
-              <p className="mt-1 text-sm text-muted-foreground">This usually takes under 10 seconds</p>
+              <p className="font-medium text-foreground">{loadingMessage}</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {loadingStep === "fetching" 
+                  ? "Retrieving comments from YouTube..."
+                  : "AI is classifying leads..."}
+              </p>
             </div>
           </div>
         </div>
@@ -233,25 +255,25 @@ export default function DashboardPage() {
     )
   }
 
-  // MVP: Page 2 - Result Screen (shown after analysis)
+  // Page 2 - Result Screen (shown after analysis)
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 p-4 sm:p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Analysis Results</h2>
-          <p className="text-muted-foreground">Found {comments.length} comments with lead classifications</p>
+          <h2 className="text-xl font-bold tracking-tight sm:text-2xl">Analysis Results</h2>
+          <p className="mt-1 text-sm text-muted-foreground sm:text-base">
+            Found {comments.length} comments with lead classifications
+          </p>
         </div>
-        <Button onClick={handleAnalyzeAnother} variant="outline" className="rounded-xl">
+        <Button 
+          onClick={handleAnalyzeAnother} 
+          variant="outline" 
+          className="w-full cursor-pointer rounded-xl sm:w-auto"
+        >
           <RefreshCw className="mr-2 h-4 w-4" />
           Analyze another video
         </Button>
       </div>
-
-      <StatsCards
-        totalComments={comments.length}
-        leadsFound={comments.filter((c) => !c.replied).length}
-        repliesSent={repliedCount}
-      />
 
       <CommentsTable comments={comments} onReply={handleReply} />
 

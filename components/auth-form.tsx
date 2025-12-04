@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,8 +19,11 @@ interface AuthFormProps {
 
 export function AuthForm({ mode }: AuthFormProps) {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
 
   // Check for error messages from URL params (e.g., from auth callback)
   useEffect(() => {
@@ -37,9 +40,9 @@ export function AuthForm({ mode }: AuthFormProps) {
   const isLogin = mode === "login"
   const title = isLogin ? "Welcome back" : "Create an account"
   const description = isLogin
-    ? "Enter your email to receive a magic link"
-    : "Enter your email to get started"
-  const buttonText = isLogin ? "Send Magic Link" : "Start"
+    ? "Enter your email and password"
+    : "Enter your email and password to get started"
+  const buttonText = isLogin ? "Login" : "Sign up"
   const altText = isLogin ? "Don't have an account?" : "Already have an account?"
   const altLink = isLogin ? "/signup" : "/login"
   const altLinkText = isLogin ? "Sign up" : "Login"
@@ -49,32 +52,53 @@ export function AuthForm({ mode }: AuthFormProps) {
     setIsLoading(true)
 
     try {
-      const supabase = createClient()
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      })
-
-      if (error) {
-        // Check for rate limit errors
-        const errorMessage = error.message?.toLowerCase() || ''
-        const isRateLimit = errorMessage.includes('rate limit') || 
-                           errorMessage.includes('too many') ||
-                           error.status === 429 ||
-                           errorMessage.includes('email rate limit exceeded')
-        
-        if (isRateLimit) {
-          toast.error("Too many requests. Please wait 1 hour before requesting another magic link.")
-        } else {
-          toast.error(error.message || "Failed to send magic link. Please try again.")
-        }
+      // Validate passwords match for signup
+      if (!isLogin && password !== confirmPassword) {
+        toast.error("Passwords do not match")
         setIsLoading(false)
         return
       }
 
-      toast.success("Check your email for the magic link!")
+      // Validate password length
+      if (password.length < 6) {
+        toast.error("Password must be at least 6 characters long")
+        setIsLoading(false)
+        return
+      }
+
+      const supabase = createClient()
+
+      if (isLogin) {
+        // Login with email and password
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        })
+
+        if (error) {
+          toast.error(error.message || "Failed to login. Please check your credentials.")
+          setIsLoading(false)
+          return
+        }
+
+        toast.success("Login successful!")
+        router.push("/dashboard")
+      } else {
+        // Signup with email and password
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+        })
+
+        if (error) {
+          toast.error(error.message || "Failed to create account. Please try again.")
+          setIsLoading(false)
+          return
+        }
+
+        toast.success("Account created successfully!")
+        router.push("/dashboard")
+      }
     } catch (error) {
       toast.error("An unexpected error occurred. Please try again.")
     } finally {
@@ -110,6 +134,32 @@ export function AuthForm({ mode }: AuthFormProps) {
                 className="h-11 rounded-xl"
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="h-11 rounded-xl"
+              />
+            </div>
+            {!isLogin && (
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="Confirm your password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  className="h-11 rounded-xl"
+                />
+              </div>
+            )}
             <Button type="submit" disabled={isLoading} className="h-11 w-full rounded-xl">
               {isLoading ? (
                 <>

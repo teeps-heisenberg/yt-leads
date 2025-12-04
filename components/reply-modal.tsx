@@ -11,9 +11,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
 import type { Comment } from "@/lib/dummy-data"
-import { Loader2, Send } from "lucide-react"
+import { Loader2, Send, Copy, Check } from "lucide-react"
+import { toast } from "sonner"
 
 interface ReplyModalProps {
   comment: Comment | null
@@ -23,17 +23,29 @@ interface ReplyModalProps {
 }
 
 export function ReplyModal({ comment, open, onOpenChange, onSend }: ReplyModalProps) {
-  const [reply, setReply] = useState("")
   const [isSending, setIsSending] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const aiReply = comment?.reply || "Thank you for your comment!"
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(aiReply)
+      setCopied(true)
+      toast.success("AI reply copied to clipboard!")
+      setTimeout(() => setCopied(false), 2000)
+    } catch (error) {
+      toast.error("Failed to copy reply")
+    }
+  }
 
   const handleSend = async () => {
-    if (!comment || !reply.trim()) return
+    if (!comment) return
 
     setIsSending(true)
     // Simulate API delay
     await new Promise((resolve) => setTimeout(resolve, 1000))
-    onSend(comment.id, reply)
-    setReply("")
+    onSend(comment.id, aiReply)
     setIsSending(false)
     onOpenChange(false)
   }
@@ -44,8 +56,8 @@ export function ReplyModal({ comment, open, onOpenChange, onSend }: ReplyModalPr
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Reply to Comment</DialogTitle>
-          <DialogDescription>Write your reply to engage with this potential lead.</DialogDescription>
+          <DialogTitle>AI Generated Reply</DialogTitle>
+          <DialogDescription>Review and copy the AI-generated reply for this comment.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -63,20 +75,39 @@ export function ReplyModal({ comment, open, onOpenChange, onSend }: ReplyModalPr
             <p className="text-sm text-muted-foreground">{comment.text}</p>
           </div>
 
-          <Textarea
-            placeholder="Write your reply here..."
-            value={reply}
-            onChange={(e) => setReply(e.target.value)}
-            rows={4}
-            className="rounded-xl resize-none"
-          />
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium">AI Generated Reply</label>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCopy}
+                className="h-8 rounded-lg"
+              >
+                {copied ? (
+                  <>
+                    <Check className="mr-1.5 h-3.5 w-3.5 text-green-600" />
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="mr-1.5 h-3.5 w-3.5" />
+                    Copy
+                  </>
+                )}
+              </Button>
+            </div>
+            <div className="rounded-xl border border-border bg-primary/5 p-4">
+              <p className="text-sm leading-relaxed text-foreground">{aiReply}</p>
+            </div>
+          </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} className="rounded-xl">
             Cancel
           </Button>
-          <Button onClick={handleSend} disabled={isSending || !reply.trim()} className="rounded-xl">
+          <Button onClick={handleSend} disabled={isSending} className="rounded-xl">
             {isSending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -85,7 +116,7 @@ export function ReplyModal({ comment, open, onOpenChange, onSend }: ReplyModalPr
             ) : (
               <>
                 <Send className="mr-2 h-4 w-4" />
-                Send Reply
+                Mark as Replied
               </>
             )}
           </Button>
