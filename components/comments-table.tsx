@@ -163,18 +163,19 @@ export function CommentsTable({ comments, onReply }: CommentsTableProps) {
                   </TableCell>
                   <TableCell>
                     <p 
-                      className={`line-clamp-2 text-sm ${
+                      className={`text-sm text-muted-foreground ${
                         comment.text.length > 100 ? 'cursor-pointer hover:text-foreground hover:underline' : ''
                       }`}
                       onClick={() => {
-                        // Check if text is likely truncated (rough estimate based on line-clamp-2)
                         if (comment.text.length > 100) {
                           setSelectedCommentText({ id: comment.id, text: comment.text })
                           setCommentPopupOpen(true)
                         }
                       }}
                     >
-                      {comment.text}
+                      {comment.text.length > 100 
+                        ? `${comment.text.substring(0, 100)}...` 
+                        : comment.text}
                     </p>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{comment.date}</TableCell>
@@ -284,7 +285,9 @@ export function CommentsTable({ comments, onReply }: CommentsTableProps) {
                   }
                 }}
               >
-                {comment.text}
+                {comment.text.length > 150 
+                  ? `${comment.text.substring(0, 150)}...` 
+                  : comment.text}
               </p>
 
               <div className="flex items-center justify-between">

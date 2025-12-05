@@ -5,7 +5,7 @@ import { UrlInput } from "@/components/url-input"
 import { CommentsTable } from "@/components/comments-table"
 import { ReplyModal } from "@/components/reply-modal"
 import { Spinner } from "@/components/ui/spinner"
-import { type Comment, dummyComments } from "@/lib/dummy-data"
+import { type Comment } from "@/lib/dummy-data"
 import { toast } from "sonner"
 import { Youtube, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -107,16 +107,36 @@ export default function DashboardPage() {
     setCurrentVideoUrl(url)
     
     try {
-      // TEMPORARY: Using dummy data instead of API calls
-      // Step 1: Simulate fetching comments from YouTube
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      // Step 1: Fetch comments from YouTube API
+      const fetchResponse = await fetch(`/api/youtube/fetch-comments?url=${encodeURIComponent(url)}`)
       
-      // Use dummy data instead of API call
-      // const fetchResponse = await fetch(`/api/youtube/fetch-comments?url=${encodeURIComponent(url)}`)
-      // if (!fetchResponse.ok) { ... }
-      // const fetchData = await fetchResponse.json()
-      // const rawComments = fetchData.comments || []
-      const rawComments = dummyComments
+      if (!fetchResponse.ok) {
+        const errorData = await fetchResponse.json().catch(() => ({}))
+        const errorMessage = errorData.error || "Failed to fetch comments from YouTube."
+        
+        if (fetchResponse.status === 404) {
+          toast.error("Video not found or comments are disabled.")
+        } else if (fetchResponse.status === 403) {
+          toast.error("YouTube API access denied. Please check your API configuration.")
+        } else {
+          toast.error(errorMessage)
+        }
+        
+        setIsLoading(false)
+        setLoadingStep(null)
+        return
+      }
+      
+      const fetchData = await fetchResponse.json()
+      
+      if (fetchData.error) {
+        toast.error(fetchData.error)
+        setIsLoading(false)
+        setLoadingStep(null)
+        return
+      }
+      
+      const rawComments = fetchData.comments || []
 
       if (rawComments.length === 0) {
         toast.error("No comments found for this video.")
@@ -125,20 +145,42 @@ export default function DashboardPage() {
         return
       }
 
-      // Step 2: Simulate AI classification
+      // Step 2: Classify comments using Gemini AI
       setLoadingStep("analyzing")
-      await new Promise((resolve) => setTimeout(resolve, 2000))
       
-      // Use dummy data with classifications instead of API call
-      // const classifyResponse = await fetch("/api/ai/classify", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({ comments: rawComments }),
-      // })
-      // if (!classifyResponse.ok) { ... }
-      // const classifyData = await classifyResponse.json()
-      // const classifiedComments = classifyData.comments || rawComments
-      const classifiedComments = dummyComments
+      const classifyResponse = await fetch("/api/ai/classify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ comments: rawComments }),
+      })
+      
+      if (!classifyResponse.ok) {
+        const errorData = await classifyResponse.json().catch(() => ({}))
+        const errorMessage = errorData.error || "Failed to classify comments."
+        
+        if (classifyResponse.status === 408) {
+          toast.error("Processing timeout. Please try again with fewer comments.")
+        } else if (classifyResponse.status === 500) {
+          toast.error("AI classification service error. Please try again later.")
+        } else {
+          toast.error(errorMessage)
+        }
+        
+        setIsLoading(false)
+        setLoadingStep(null)
+        return
+      }
+      
+      const classifyData = await classifyResponse.json()
+      
+      if (classifyData.error) {
+        toast.error(classifyData.error)
+        setIsLoading(false)
+        setLoadingStep(null)
+        return
+      }
+      
+      const classifiedComments = classifyData.comments || rawComments
 
       setComments(classifiedComments)
       toast.success(`Successfully analyzed ${classifiedComments.length} comments!`)
