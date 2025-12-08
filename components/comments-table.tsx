@@ -99,12 +99,12 @@ export function CommentsTable({ comments, onReply }: CommentsTableProps) {
           <TableHeader>
             <TableRow>
               <TableHead className="w-[100px]">Lead</TableHead>
-              <TableHead className="w-[200px]">Reason</TableHead>
               <TableHead className="w-[200px]">User</TableHead>
               <TableHead>Comment</TableHead>
+              <TableHead className="w-[180px]">Actions</TableHead>
+              <TableHead className="w-[200px]">Reason</TableHead>
               <TableHead className="w-[100px]">Date</TableHead>
               <TableHead className="w-[80px]">Likes</TableHead>
-              <TableHead className="w-[180px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -132,27 +132,6 @@ export function CommentsTable({ comments, onReply }: CommentsTableProps) {
                     })()}
                   </TableCell>
                   <TableCell>
-                    {comment.leadReason ? (
-                      <p 
-                        className={`text-xs text-muted-foreground line-clamp-1 ${
-                          comment.leadReason.length > 60 ? 'cursor-pointer hover:text-foreground hover:underline' : ''
-                        }`}
-                        onClick={() => {
-                          if (comment.leadReason && comment.leadReason.length > 60) {
-                            setSelectedReason({ id: comment.id, text: comment.leadReason, leadType: comment.leadType })
-                            setReasonPopupOpen(true)
-                          }
-                        }}
-                      >
-                        {comment.leadReason.length > 60 
-                          ? `${comment.leadReason.substring(0, 60)}...` 
-                          : comment.leadReason}
-                      </p>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={comment.avatar || "/placeholder.svg"} alt={comment.username} />
@@ -178,15 +157,8 @@ export function CommentsTable({ comments, onReply }: CommentsTableProps) {
                         : comment.text}
                     </p>
                   </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{comment.date}</TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <Heart className="h-3.5 w-3.5" />
-                      {comment.likes}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5">
                       <Button
                         size="sm"
                         variant="ghost"
@@ -200,15 +172,47 @@ export function CommentsTable({ comments, onReply }: CommentsTableProps) {
                         )}
                       </Button>
                       {comment.replied ? (
-                        <Badge variant="secondary" className="rounded-lg">
+                        <Badge variant="secondary" className="rounded-lg px-3 py-1.5">
                           Replied
                         </Badge>
                       ) : (
-                        <Button size="sm" onClick={() => onReply(comment)} className="rounded-lg">
-                          <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
+                        <Button 
+                          size="sm" 
+                          onClick={() => onReply(comment)} 
+                          className="rounded-lg px-4 py-2 h-9 font-medium"
+                        >
+                          <MessageSquare className="mr-1.5 h-4 w-4" />
                           Reply
                         </Button>
                       )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {comment.leadReason ? (
+                      <p 
+                        className={`text-xs text-muted-foreground line-clamp-1 ${
+                          comment.leadReason.length > 60 ? 'cursor-pointer hover:text-foreground hover:underline' : ''
+                        }`}
+                        onClick={() => {
+                          if (comment.leadReason && comment.leadReason.length > 60) {
+                            setSelectedReason({ id: comment.id, text: comment.leadReason, leadType: comment.leadType })
+                            setReasonPopupOpen(true)
+                          }
+                        }}
+                      >
+                        {comment.leadReason.length > 60 
+                          ? `${comment.leadReason.substring(0, 60)}...` 
+                          : comment.leadReason}
+                      </p>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{comment.date}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <Heart className="h-3.5 w-3.5" />
+                      {comment.likes}
                     </div>
                   </TableCell>
                 </TableRow>

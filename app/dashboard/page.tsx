@@ -4,6 +4,8 @@ import { useState, useEffect } from "react"
 import { UrlInput } from "@/components/url-input"
 import { CommentsTable } from "@/components/comments-table"
 import { ReplyModal } from "@/components/reply-modal"
+import { FeedbackModal } from "@/components/feedback-modal"
+import { FeedbackBanner } from "@/components/feedback-banner"
 import { Spinner } from "@/components/ui/spinner"
 import { type Comment } from "@/lib/dummy-data"
 import { toast } from "sonner"
@@ -49,6 +51,9 @@ export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [currentVideoUrl, setCurrentVideoUrl] = useState<string>("")
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false)
+  const [showFeedbackBanner, setShowFeedbackBanner] = useState(false)
+  const [currentAnalysisId, setCurrentAnalysisId] = useState<string | null>(null)
 
   // Check authentication status on mount
   useEffect(() => {
@@ -201,7 +206,14 @@ export default function DashboardPage() {
           cold_leads: coldLeads,
         }
 
-        await saveToSupabase(analysisData)
+        const saveResult = await saveToSupabase(analysisData)
+        
+        // Store analysis ID for feedback linking
+        if (saveResult?.id) {
+          setCurrentAnalysisId(saveResult.id)
+          // Show feedback banner instead of auto-showing modal
+          setShowFeedbackBanner(true)
+        }
       }
     } catch (error) {
       console.error("Error in handleFetch:", error)
@@ -215,7 +227,18 @@ export default function DashboardPage() {
   const handleAnalyzeAnother = () => {
     setComments([])
     setCurrentVideoUrl("")
+    setCurrentAnalysisId(null)
+    setShowFeedbackModal(false)
+    setShowFeedbackBanner(false)
     clearSessionStorage()
+  }
+
+  const handleFeedbackClick = () => {
+    setShowFeedbackModal(true)
+  }
+
+  const handleDismissBanner = () => {
+    setShowFeedbackBanner(false)
   }
 
   const handleReply = (comment: Comment) => {
@@ -317,9 +340,24 @@ export default function DashboardPage() {
         </Button>
       </div>
 
+      {isAuthenticated && showFeedbackBanner && currentAnalysisId && (
+        <FeedbackBanner
+          onFeedbackClick={handleFeedbackClick}
+          onDismiss={handleDismissBanner}
+        />
+      )}
+
       <CommentsTable comments={comments} onReply={handleReply} />
 
       <ReplyModal comment={selectedComment} open={isModalOpen} onOpenChange={setIsModalOpen} onSend={handleSendReply} />
+      
+      {isAuthenticated && (
+        <FeedbackModal
+          analysisId={currentAnalysisId}
+          open={showFeedbackModal}
+          onOpenChange={setShowFeedbackModal}
+        />
+      )}
     </div>
   )
 }
