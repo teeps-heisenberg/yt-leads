@@ -10,14 +10,15 @@ import { Loader2, Search } from "lucide-react"
 interface UrlInputProps {
   onFetch: (url: string) => void
   isLoading: boolean
+  disabled?: boolean
 }
 
-export function UrlInput({ onFetch, isLoading }: UrlInputProps) {
+export function UrlInput({ onFetch, isLoading, disabled = false }: UrlInputProps) {
   const [url, setUrl] = useState("")
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (url.trim()) {
+    if (url.trim() && !disabled) {
       onFetch(url.trim())
     }
   }
@@ -31,12 +32,13 @@ export function UrlInput({ onFetch, isLoading }: UrlInputProps) {
           placeholder="Paste your YouTube link here."
           value={url}
           onChange={(e) => setUrl(e.target.value)}
+          disabled={disabled}
           className="h-12 rounded-xl pl-10 text-base"
         />
       </div>
       <Button 
         type="submit" 
-        disabled={isLoading || !url.trim()} 
+        disabled={isLoading || !url.trim() || disabled} 
         className="h-12 w-full rounded-xl px-6 sm:w-auto"
       >
         {isLoading ? (

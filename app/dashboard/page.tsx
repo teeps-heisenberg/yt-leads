@@ -9,7 +9,7 @@ import { FeedbackBanner } from "@/components/feedback-banner"
 import { Spinner } from "@/components/ui/spinner"
 import { type Comment } from "@/lib/dummy-data"
 import { toast } from "sonner"
-import { Youtube, RefreshCw } from "lucide-react"
+import { Youtube, RefreshCw, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 import {
@@ -54,8 +54,10 @@ export default function DashboardPage() {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false)
   const [showFeedbackBanner, setShowFeedbackBanner] = useState(false)
   const [currentAnalysisId, setCurrentAnalysisId] = useState<string | null>(null)
+  const [isYouTubeConnected, setIsYouTubeConnected] = useState<boolean | null>(null)
+  const [isCheckingConnection, setIsCheckingConnection] = useState(true)
 
-  // Check authentication status on mount
+  // Check authentication status and YouTube connection on mount
   useEffect(() => {
     let mounted = true
 
@@ -67,6 +69,14 @@ export default function DashboardPage() {
       
       setUser(user)
       setIsAuthenticated(!!user)
+
+      // Check YouTube connection if user is authenticated
+      if (user) {
+        checkYouTubeConnection()
+      } else {
+        setIsCheckingConnection(false)
+        setIsYouTubeConnected(false)
+      }
 
       // Removed auto-loading of last analysis - dashboard should start fresh
       // Results will only show when user explicitly analyzes a video
@@ -90,6 +100,12 @@ export default function DashboardPage() {
       } else if (mounted) {
         setUser(session?.user ?? null)
         setIsAuthenticated(!!session?.user)
+        if (session?.user) {
+          checkYouTubeConnection()
+        } else {
+          setIsYouTubeConnected(false)
+          setIsCheckingConnection(false)
+        }
       }
     })
 
@@ -99,7 +115,27 @@ export default function DashboardPage() {
     }
   }, [])
 
+  async function checkYouTubeConnection() {
+    setIsCheckingConnection(true)
+    try {
+      const response = await fetch('/api/youtube/check-connection')
+      const data = await response.json()
+      setIsYouTubeConnected(data.connected || false)
+    } catch (error) {
+      console.error('Error checking YouTube connection:', error)
+      setIsYouTubeConnected(false)
+    } finally {
+      setIsCheckingConnection(false)
+    }
+  }
+
   const handleFetch = async (url: string) => {
+    // Check if YouTube is connected
+    if (isYouTubeConnected === false) {
+      toast.error("Please connect your YouTube account in Settings to analyze videos.")
+      return
+    }
+
     // Validate URL first
     const videoId = extractVideoId(url)
     if (!videoId) {
@@ -122,7 +158,13 @@ export default function DashboardPage() {
         if (fetchResponse.status === 404) {
           toast.error("Video not found or comments are disabled.")
         } else if (fetchResponse.status === 403) {
-          toast.error("YouTube API access denied. Please check your API configuration.")
+          const errorDetails = errorData.details || errorData.error || "YouTube API access denied."
+          if (errorDetails.includes("not connected")) {
+            toast.error("YouTube account not connected. Please connect your account in Settings.")
+            setIsYouTubeConnected(false)
+          } else {
+            toast.error("YouTube API access denied. Please check your API configuration.")
+          }
         } else {
           toast.error(errorMessage)
         }
@@ -270,7 +312,36 @@ export default function DashboardPage() {
 
           {/* Input Section */}
           <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-            <UrlInput onFetch={handleFetch} isLoading={isLoading} />
+            <div className="space-y-4">
+              {isYouTubeConnected === false && !isCheckingConnection && (
+                <div className="rounded-xl border border-yellow-500/50 bg-yellow-500/10 p-4">
+                  <div className="flex items-start gap-3">
+                    <Lock className="h-5 w-5 text-yellow-600 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="font-medium text-yellow-900 dark:text-yellow-100">
+                        YouTube account not connected
+                      </p>
+                      <p className="mt-1 text-sm text-yellow-800 dark:text-yellow-200">
+                        Please connect your YouTube account in Settings to analyze videos.
+                      </p>
+                      <Button
+                        onClick={() => window.location.href = '/dashboard/settings'}
+                        variant="outline"
+                        size="sm"
+                        className="mt-3 rounded-xl border-yellow-600 text-yellow-700 hover:bg-yellow-50 dark:text-yellow-300 dark:hover:bg-yellow-900/20"
+                      >
+                        Go to Settings
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <UrlInput 
+                onFetch={handleFetch} 
+                isLoading={isLoading || isCheckingConnection}
+                disabled={isYouTubeConnected === false}
+              />
+            </div>
           </div>
 
           {/* Empty State Section */}

@@ -14,7 +14,7 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   // { name: "Leads", href: "/dashboard/leads", icon: Users },
   // { name: "Replies", href: "/dashboard/replies", icon: MessageSquare },
-  // { name: "Settings", href: "/dashboard/settings", icon: Settings },
+  { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ]
 
 function SidebarContent() {

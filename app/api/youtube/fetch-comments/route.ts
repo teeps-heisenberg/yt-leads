@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
+import { createClient } from '@/lib/supabase/server';
+import { getYouTubeClientForUser } from '@/lib/youtube-client';
 
 // YouTube API response types
 interface YouTubeCommentSnippet {
@@ -87,6 +89,17 @@ function formatRelativeTime(dateString: string): string {
 
 export async function GET(request: NextRequest) {
   try {
+    // Get authenticated user
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Unauthorized. Please log in.' },
+        { status: 401 }
+      );
+    }
+
     // Get video URL or ID from query parameter
     const searchParams = request.nextUrl.searchParams
     const videoUrl = searchParams.get("url") || searchParams.get("videoId")
@@ -108,66 +121,19 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get API key from environment variables
-    const apiKey = process.env.YOUTUBE_API_KEY || process.env.NEXT_PUBLIC_YOUTUBE_API_KEY
+    // Get YouTube client with user's OAuth tokens
+    const youtube = await getYouTubeClientForUser(user.id);
 
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "YouTube API key is not configured. Please set YOUTUBE_API_KEY in your environment variables." },
-        { status: 500 }
-      )
-    }
+    // Fetch comments using YouTube API
+    const response = await youtube.commentThreads.list({
+      part: ['snippet', 'replies'],
+      videoId: videoId,
+      maxResults: 100,
+      order: 'time',
+      textFormat: 'plainText',
+    });
 
-    // Build YouTube API URL
-    const apiUrl = new URL("https://www.googleapis.com/youtube/v3/commentThreads")
-    apiUrl.searchParams.append("part", "snippet,replies")
-    apiUrl.searchParams.append("videoId", videoId)
-    apiUrl.searchParams.append("maxResults", "100")
-    apiUrl.searchParams.append("order", "time")
-    apiUrl.searchParams.append("textFormat", "plainText")
-    apiUrl.searchParams.append("key", apiKey)
-
-    // Fetch comments from YouTube API
-    const response = await fetch(apiUrl.toString(), {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-      },
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      
-      // Handle specific YouTube API errors
-      if (response.status === 403) {
-        return NextResponse.json(
-          { error: "YouTube API access denied. Please check your API key and quota." },
-          { status: 403 }
-        )
-      }
-      if (response.status === 404) {
-        return NextResponse.json(
-          { error: "Video not found. Please check if the video exists and is publicly accessible." },
-          { status: 404 }
-        )
-      }
-      if (response.status === 400) {
-        return NextResponse.json(
-          { error: errorData.error?.message || "Invalid request to YouTube API." },
-          { status: 400 }
-        )
-      }
-
-      return NextResponse.json(
-        { error: `YouTube API error: ${errorData.error?.message || response.statusText}` },
-        { status: response.status }
-      )
-    }
-
-    const data: YouTubeApiResponse = await response.json()
-
-    // Check if video has comments disabled
-    if (!data.items || data.items.length === 0) {
+    if (!response.data.items || response.data.items.length === 0) {
       return NextResponse.json(
         { error: "This video has no comments or comments are disabled." },
         { status: 404 }
@@ -175,13 +141,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform YouTube API response to our Comment format
-    const comments = data.items.map((item, index) => {
-      // Get the comment snippet (top-level comment)
-      const snippet = item.snippet.topLevelComment?.snippet || item.snippet.snippet
+    const comments = response.data.items.map((item, index) => {
+      const snippet = item.snippet?.topLevelComment?.snippet || item.snippet?.snippet;
 
       if (!snippet) {
-        // Fallback if snippet structure is unexpected
-        return null
+        return null;
       }
 
       return {
@@ -189,21 +153,32 @@ export async function GET(request: NextRequest) {
         username: snippet.authorDisplayName || "Unknown User",
         avatar: snippet.authorProfileImageUrl || "/placeholder.svg",
         text: snippet.textDisplay || "",
-        date: formatRelativeTime(snippet.publishedAt),
+        date: formatRelativeTime(snippet.publishedAt || ''),
         likes: snippet.likeCount || 0,
         replied: false,
       }
-    }).filter((comment) => comment !== null) // Remove any null entries
+    }).filter((comment) => comment !== null);
 
     return NextResponse.json({
       comments,
-      totalResults: data.pageInfo?.totalResults || comments.length,
-      hasMore: !!data.nextPageToken,
-      nextPageToken: data.nextPageToken,
+      totalResults: response.data.pageInfo?.totalResults || comments.length,
+      hasMore: !!response.data.nextPageToken,
+      nextPageToken: response.data.nextPageToken,
     })
 
   } catch (error) {
     console.error("Error fetching YouTube comments:", error)
+    
+    // Handle specific errors
+    if (error instanceof Error && error.message.includes('not connected')) {
+      return NextResponse.json(
+        { 
+          error: "YouTube account not connected",
+          details: "Please connect your YouTube account in settings to use this feature."
+        },
+        { status: 403 }
+      );
+    }
     
     return NextResponse.json(
       { 
