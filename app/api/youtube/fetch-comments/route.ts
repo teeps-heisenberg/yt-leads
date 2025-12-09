@@ -142,14 +142,14 @@ export async function GET(request: NextRequest) {
 
     // Transform YouTube API response to our Comment format
     const comments = response.data.items.map((item, index) => {
-      const snippet = item.snippet?.topLevelComment?.snippet || item.snippet?.snippet;
+      const snippet = item.snippet?.topLevelComment?.snippet;
 
       if (!snippet) {
         return null;
       }
 
       return {
-        id: item.id || `comment-${index}`,
+        id: item.snippet?.topLevelComment?.id || item.id || `comment-${index}`,
         username: snippet.authorDisplayName || "Unknown User",
         avatar: snippet.authorProfileImageUrl || "/placeholder.svg",
         text: snippet.textDisplay || "",
