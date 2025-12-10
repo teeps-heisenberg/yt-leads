@@ -116,6 +116,28 @@ export function AuthForm({ mode }: AuthFormProps) {
           return
         }
 
+        // Create profile record in profiles table
+        try {
+          const profileResponse = await fetch('/api/profile/update', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              first_name: firstName.trim(),
+              last_name: lastName.trim(),
+            }),
+          })
+
+          if (!profileResponse.ok) {
+            // Don't fail signup if profile creation fails, but log it
+            console.error('Failed to create profile record, but signup succeeded')
+          }
+        } catch (profileError) {
+          // Don't fail signup if profile creation fails
+          console.error('Error creating profile:', profileError)
+        }
+
         toast.success("Account created successfully!")
         router.push("/dashboard")
       }
