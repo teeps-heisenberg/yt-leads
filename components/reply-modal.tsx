@@ -43,11 +43,61 @@ export function ReplyModal({ comment, open, onOpenChange, onSend }: ReplyModalPr
     if (!comment) return
 
     setIsSending(true)
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    onSend(comment.id, aiReply)
-    setIsSending(false)
-    onOpenChange(false)
+    
+    try {
+      // Call the API to post reply to YouTube
+      const response = await fetch('/api/youtube/reply', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          commentId: comment.id,
+          replyText: aiReply,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        // Handle API errors
+        const errorMessage = data.error || 'Failed to post reply'
+        const errorDetails = data.details || ''
+        
+        if (response.status === 403) {
+          if (errorMessage.includes('not connected')) {
+            toast.error('YouTube account not connected. Please connect your account in Settings.')
+          } else {
+            toast.error(errorMessage)
+          }
+        } else if (response.status === 400) {
+          if (errorMessage.includes('too long')) {
+            toast.error('Reply is too long. Please shorten it.')
+          } else if (errorMessage.includes('Cannot reply')) {
+            toast.error('Cannot reply to this comment. Replies may be disabled.')
+          } else {
+            toast.error(errorMessage)
+          }
+        } else if (response.status === 404) {
+          toast.error('Comment not found. It may have been deleted.')
+        } else {
+          toast.error(errorMessage)
+        }
+        
+        setIsSending(false)
+        return
+      }
+
+      // Success - update UI
+      toast.success('Reply posted successfully to YouTube!')
+      onSend(comment.id, aiReply)
+      onOpenChange(false)
+    } catch (error) {
+      console.error('Error posting reply:', error)
+      toast.error('Failed to post reply. Please check your connection and try again.')
+    } finally {
+      setIsSending(false)
+    }
   }
 
   if (!comment) return null
@@ -116,7 +166,7 @@ export function ReplyModal({ comment, open, onOpenChange, onSend }: ReplyModalPr
             ) : (
               <>
                 <Send className="mr-2 h-4 w-4" />
-                Mark as Replied
+                Post Reply
               </>
             )}
           </Button>
