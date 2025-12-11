@@ -4,6 +4,7 @@ import { Header } from "@/components/header"
 import { Hero } from "@/components/hero"
 import { HowItWorks } from "@/components/how-it-works"
 import { Testimonials } from "@/components/testimonials"
+import { PricingSection } from "@/components/pricing-section"
 import { Footer } from "@/components/footer"
 
 export default async function LandingPage() {
@@ -22,6 +23,7 @@ export default async function LandingPage() {
         <Hero />
         <HowItWorks />
         <Testimonials />
+        <PricingSection />
       </main>
       <Footer />
     </div>
