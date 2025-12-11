@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { LayoutDashboard, Users, MessageSquare, Settings, Play, Menu, LogOut } from "lucide-react"
+import { LayoutDashboard, Users, MessageSquare, Settings, Play, Menu, LogOut, CreditCard } from "lucide-react"
 import { useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 
@@ -14,6 +14,7 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   // { name: "Leads", href: "/dashboard/leads", icon: Users },
   // { name: "Replies", href: "/dashboard/replies", icon: MessageSquare },
+  { name: "Subscriptions", href: "/subscriptions", icon: CreditCard },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ]
 
